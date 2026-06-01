@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Target, Globe, Clock, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle, ExternalLink, Trophy, Users, Calendar, Loader2 } from "lucide-react";
-import { dummyWebsiteRanking } from "../assets/assets";
+import { useApp } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 interface RankHistoryEntry {
     date: string;
@@ -39,6 +40,7 @@ interface TrackingData {
 
 export default function RankDetail() {
     const { id } = useParams();
+    const { api } = useApp();
     const [tracking, setTracking] = useState<TrackingData | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -46,19 +48,45 @@ export default function RankDetail() {
     const chartRef = useRef<HTMLCanvasElement>(null);
 
     const fetchTracking = async () => {
-        setTimeout(() => {
-            setTracking(dummyWebsiteRanking);
+        if (!id) return;
+        
+        setLoading(true);
+        try {
+            const response = await api.get(`/api/rank/keywords/${id}`);
+            if (response.data.success) {
+                setTracking(response.data.keyword);
+            } else {
+                toast.error(response.data.message || "Failed to load tracking data");
+            }
+        } catch (error: any) {
+            console.error("Error fetching tracking:", error);
+            toast.error(error.response?.data?.message || "Failed to load tracking data");
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     const handleRefresh = async () => {
         if (!tracking) return;
+        
         setRefreshing(true);
-        setTimeout(() => {
-            setTracking(dummyWebsiteRanking);
+        try {
+            const response = await api.put(`/api/rank/keywords/${id}/refresh`);
+            if (response.data.success) {
+                toast.success("Ranking refresh initiated! New data will be available shortly.");
+                // Poll for updated data
+                setTimeout(() => {
+                    fetchTracking();
+                }, 3000);
+            } else {
+                toast.error(response.data.message || "Failed to refresh ranking");
+            }
+        } catch (error: any) {
+            console.error("Error refreshing:", error);
+            toast.error(error.response?.data?.message || "Failed to refresh ranking");
+        } finally {
             setRefreshing(false);
-        }, 1000);
+        }
     };
 
     const drawChart = () => {
@@ -150,7 +178,6 @@ export default function RankDetail() {
 
         // Draw gradient fill
         const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
-        // Using accent rgb roughly (59, 130, 246)
         gradient.addColorStop(0, "rgba(59, 130, 246, 0.15)");
         gradient.addColorStop(1, "rgba(59, 130, 246, 0)");
 
@@ -210,12 +237,12 @@ export default function RankDetail() {
     };
 
     useEffect(() => {
-        (async () => await fetchTracking())();
+        fetchTracking();
     }, [id]);
 
     useEffect(() => {
-        if (tracking && tracking.rankHistory.length > 0 && chartRef.current) {
-            drawChart();
+        if (tracking && tracking.rankHistory.length > 0 && chartRef.current && activeTab === "overview") {
+            setTimeout(() => drawChart(), 100);
         }
     }, [tracking, activeTab]);
 
@@ -244,7 +271,7 @@ export default function RankDetail() {
     const change = getChangeIndicator(tracking.positionChange);
     const tabs = [
         { id: "overview", label: "Overview" },
-        { id: "competitors", label: `Competitors (${tracking.competitors.length})` },
+        { id: "competitors", label: `Competitors (${tracking.competitors?.length || 0})` },
         { id: "history", label: "History" },
     ];
 
@@ -270,9 +297,13 @@ export default function RankDetail() {
                                 </a>
                             </div>
                         </div>
-                        <button onClick={handleRefresh} disabled={refreshing || tracking.status === "checking"} className="glass px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-muted/50 transition-all disabled:opacity-50 self-start text-foreground">
+                        <button 
+                            onClick={handleRefresh} 
+                            disabled={refreshing || tracking.status === "checking"} 
+                            className="glass px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-muted/50 transition-all disabled:opacity-50 self-start text-foreground"
+                        >
                             <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-                            Refresh Now
+                            {tracking.status === "checking" ? "Checking..." : "Refresh Now"}
                         </button>
                     </div>
                 </div>
@@ -284,7 +315,13 @@ export default function RankDetail() {
                             <Target size={14} />
                             Current Position
                         </p>
-                        {tracking.status === "checking" ? <Loader2 size={32} className="animate-spin mx-auto text-primary" /> : <p className={`text-4xl font-bold ${getPositionColor(tracking.currentPosition)}`}>{tracking.currentPosition ? `#${tracking.currentPosition}` : "Not Ranked"}</p>}
+                        {tracking.status === "checking" ? (
+                            <Loader2 size={32} className="animate-spin mx-auto text-primary" />
+                        ) : (
+                            <p className={`text-4xl font-bold ${getPositionColor(tracking.currentPosition)}`}>
+                                {tracking.currentPosition ? `#${tracking.currentPosition}` : "Not Ranked"}
+                            </p>
+                        )}
                         {tracking.currentPage && <p className="text-xs text-muted-foreground mt-1">Page {tracking.currentPage}</p>}
                     </div>
 
@@ -305,7 +342,9 @@ export default function RankDetail() {
                             <Trophy size={14} />
                             Best Position
                         </p>
-                        <p className={`text-3xl font-bold ${getPositionColor(tracking.bestPosition)}`}>{tracking.bestPosition ? `#${tracking.bestPosition}` : "—"}</p>
+                        <p className={`text-3xl font-bold ${getPositionColor(tracking.bestPosition)}`}>
+                            {tracking.bestPosition ? `#${tracking.bestPosition}` : "—"}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">all time</p>
                     </div>
 
@@ -314,8 +353,10 @@ export default function RankDetail() {
                             <Calendar size={14} />
                             Data Points
                         </p>
-                        <p className="text-3xl font-bold text-accent">{tracking.rankHistory.length}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{tracking.lastChecked ? `Last: ${new Date(tracking.lastChecked).toLocaleDateString()}` : "Never checked"}</p>
+                        <p className="text-3xl font-bold text-accent">{tracking.rankHistory?.length || 0}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {tracking.lastChecked ? `Last: ${new Date(tracking.lastChecked).toLocaleDateString()}` : "Never checked"}
+                        </p>
                     </div>
                 </div>
 
@@ -325,7 +366,11 @@ export default function RankDetail() {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-primary text-primary-foreground" : "glass text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                                activeTab === tab.id 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "glass text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            }`}
                             style={activeTab === tab.id ? { color: "var(--background)" } : {}}
                         >
                             {tab.label}
@@ -343,7 +388,7 @@ export default function RankDetail() {
                                     <TrendingUp size={20} className="text-primary" />
                                     Ranking History
                                 </h3>
-                                {tracking.rankHistory.filter((h) => h.position !== null).length > 0 ? (
+                                {tracking.rankHistory && tracking.rankHistory.filter((h) => h.position !== null).length > 0 ? (
                                     <div className="relative" style={{ height: "300px" }}>
                                         <canvas ref={chartRef} style={{ width: "100%", height: "100%" }} className="rounded-xl" />
                                     </div>
@@ -351,13 +396,21 @@ export default function RankDetail() {
                                     <div className="text-center py-12 text-muted-foreground">
                                         <Calendar size={32} className="mx-auto mb-2 opacity-50" />
                                         <p className="text-sm">No ranking data yet. Check back after the daily tracking runs.</p>
+                                        <button 
+                                            onClick={handleRefresh}
+                                            disabled={refreshing}
+                                            className="mt-4 bg-primary px-4 py-2 rounded-lg text-sm text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                                            style={{ color: "var(--background)" }}
+                                        >
+                                            Check Now
+                                        </button>
                                     </div>
                                 )}
                                 <p className="text-xs text-muted-foreground mt-3 text-center">↑ Lower position number = higher rank. Updated daily at 6:00 AM UTC.</p>
                             </div>
 
                             {/* Top 3 Competitors Preview */}
-                            {tracking.competitors.length > 0 && (
+                            {tracking.competitors && tracking.competitors.length > 0 && (
                                 <div className="glass rounded-2xl p-6">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -373,7 +426,11 @@ export default function RankDetail() {
                                             <div key={i} className="glass rounded-xl p-4 flex items-start gap-4">
                                                 <div
                                                     className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
-                                                        i === 0 ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : i === 1 ? "bg-gray-400/15 text-gray-300 border border-gray-400/30" : "bg-orange-500/15 text-orange-400 border border-orange-500/30"
+                                                        i === 0 
+                                                            ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" 
+                                                            : i === 1 
+                                                                ? "bg-gray-400/15 text-gray-300 border border-gray-400/30" 
+                                                                : "bg-orange-500/15 text-orange-400 border border-orange-500/30"
                                                     }`}
                                                 >
                                                     #{comp.position}
@@ -399,14 +456,18 @@ export default function RankDetail() {
                                 <Users size={20} className="text-accent" />
                                 Competitors for "{tracking.keyword}"
                             </h3>
-                            {tracking.competitors.length > 0 ? (
+                            {tracking.competitors && tracking.competitors.length > 0 ? (
                                 <div className="space-y-3">
                                     {tracking.competitors.map((comp, i) => (
                                         <div key={i} className="glass rounded-xl p-4 hover:bg-muted/50 transition-all">
                                             <div className="flex items-start gap-4">
                                                 <div
                                                     className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
-                                                        comp.position <= 3 ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : comp.position <= 10 ? "bg-primary/15 text-primary border border-primary/30" : "bg-accent/15 text-accent border border-accent/30"
+                                                        comp.position <= 3 
+                                                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" 
+                                                            : comp.position <= 10 
+                                                                ? "bg-primary/15 text-primary border border-primary/30" 
+                                                                : "bg-accent/15 text-accent border border-accent/30"
                                                     }`}
                                                 >
                                                     #{comp.position}
@@ -427,6 +488,14 @@ export default function RankDetail() {
                                 <div className="text-center py-12 text-muted-foreground">
                                     <Users size={32} className="mx-auto mb-2 opacity-50" />
                                     <p className="text-sm">No competitor data available yet.</p>
+                                    <button 
+                                        onClick={handleRefresh}
+                                        disabled={refreshing}
+                                        className="mt-4 bg-primary px-4 py-2 rounded-lg text-sm text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                                        style={{ color: "var(--background)" }}
+                                    >
+                                        Check Now
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -438,7 +507,7 @@ export default function RankDetail() {
                                 <Clock size={20} className="text-accent" />
                                 Ranking History
                             </h3>
-                            {tracking.rankHistory.length > 0 ? (
+                            {tracking.rankHistory && tracking.rankHistory.length > 0 ? (
                                 <div className="space-y-2">
                                     {[...tracking.rankHistory]
                                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -449,12 +518,12 @@ export default function RankDetail() {
                                                         entry.position === null
                                                             ? "bg-muted text-muted-foreground border border-border"
                                                             : entry.position <= 3
-                                                              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                                              : entry.position <= 10
-                                                                ? "bg-primary/15 text-primary border border-primary/30"
-                                                                : entry.position <= 20
-                                                                  ? "bg-accent/15 text-accent border border-accent/30"
-                                                                  : "bg-danger/15 text-danger border border-danger/30"
+                                                                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                                                : entry.position <= 10
+                                                                    ? "bg-primary/15 text-primary border border-primary/30"
+                                                                    : entry.position <= 20
+                                                                        ? "bg-accent/15 text-accent border border-accent/30"
+                                                                        : "bg-danger/15 text-danger border border-danger/30"
                                                     }`}
                                                 >
                                                     {entry.position ? `#${entry.position}` : "—"}
@@ -474,7 +543,9 @@ export default function RankDetail() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <p className={`text-lg font-bold ${getPositionColor(entry.position)}`}>{entry.position || "N/R"}</p>
+                                                    <p className={`text-lg font-bold ${getPositionColor(entry.position)}`}>
+                                                        {entry.position || "N/R"}
+                                                    </p>
                                                 </div>
                                             </div>
                                         ))}
@@ -483,6 +554,14 @@ export default function RankDetail() {
                                 <div className="text-center py-12 text-muted-foreground">
                                     <Calendar size={32} className="mx-auto mb-2 opacity-50" />
                                     <p className="text-sm">No history data yet. Data will appear after the first rank check.</p>
+                                    <button 
+                                        onClick={handleRefresh}
+                                        disabled={refreshing}
+                                        className="mt-4 bg-primary px-4 py-2 rounded-lg text-sm text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                                        style={{ color: "var(--background)" }}
+                                    >
+                                        Check Now
+                                    </button>
                                 </div>
                             )}
                         </div>
