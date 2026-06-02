@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SearchIcon, ArrowRightIcon, BarChart3Icon, GlobeIcon, TrendingUpIcon } from "lucide-react";
 import AnalysesCard from "../components/AnalysesCard";
-import { dummyAnalysisData } from "../assets/assets";
+import { useApp } from "../context/AppContext";
 
 interface AnalysisSummary {
     _id: string;
@@ -19,17 +19,25 @@ interface AnalysisSummary {
 }
 
 export default function Dashboard() {
-    const user = { name: "John Doe", plan: "free", analysisCount: 2 };
+    const { user, api } = useApp();
     const navigate = useNavigate();
     const [url, setUrl] = useState("");
     const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchRecent = async () => {
-        setTimeout(() => {
-            setAnalyses(dummyAnalysisData);
+        setLoading(true);
+        try {
+            const response = await api.get("/api/analyse/analyses");
+            if (response.data.success) {
+                // Get the top 3 most recent analyses for the dashboard
+                setAnalyses(response.data.analyses.slice(0, 3));
+            }
+        } catch (error) {
+            console.error("Failed to fetch recent analyses:", error);
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     const handleAnalyze = (e: React.SubmitEvent) => {
@@ -103,7 +111,7 @@ export default function Dashboard() {
                             <BarChart3Icon size={22} />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold text-foreground">{user?.plan === "free" ? `${5 - (user?.analysisCount || 0)}` : "∞"}</p>
+                            <p className="text-2xl font-bold text-foreground">{user?.plan === "free" ? `${5 - (user?.analysiscount ?? (user as any)?.analysisCount ?? 0)}` : "∞"}</p>
                             <p className="text-xs text-muted-foreground">Scans Left Today</p>
                         </div>
                     </div>

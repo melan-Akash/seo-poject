@@ -15,11 +15,11 @@ const router = express.Router();
 router.use(auth);
 
 // Analysis routes
-router.post("/analyze", analyzeUrl);
-router.get("/analyses", getUserAnalyses);
-router.get("/analyses/stats", getAnalysisStats);
-router.get("/analyses/:id", getAnalysis);
-router.put("/analyses/:id/rerun", rerunAnalysis);
-router.delete("/analyses/:id", deleteAnalysis);
+router.post("/analyze", analyzeUrl);                          // Start a new analysis
+router.get("/analyses", getUserAnalyses);                    // Get all analyses for user
+router.get("/analyses/stats", getAnalysisStats);             // Get analysis statistics
+router.get("/analyses/:id", getAnalysis);                    // Get specific analysis by ID
+router.put("/analyses/:id/rerun", rerunAnalysis);            // Re-run analysis
+router.delete("/analyses/:id", deleteAnalysis);              // Delete analysis
 
 export default router;

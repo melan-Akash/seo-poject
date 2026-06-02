@@ -61,6 +61,7 @@ const analysisSchema = new mongoose.Schema({
     pageSize: { type: Number, default: 0 },
     wordCount: { type: Number, default: 0 },
     status: { type: String, enum: ["pending", "processing", "completed", "failed"], default: "pending" },
+    failReason: { type: String, default: "" },
 }, { timestamps: true });
 
 const Analysis = mongoose.model('Analysis', analysisSchema);

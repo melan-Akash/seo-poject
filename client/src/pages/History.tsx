@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Clock, Trash2, ExternalLink, Search, AlertCircle, Loader2, Filter, ArrowUpDown } from "lucide-react";
 import ScoreGauge from "../components/ScoreGauge";
-import { dummyAnalysisData } from "../assets/assets";
+import { useApp } from "../context/AppContext";
 
 interface AnalysisItem {
     _id: string;
@@ -19,6 +20,7 @@ interface AnalysisItem {
 }
 
 export default function History() {
+    const { api } = useApp();
     const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -30,19 +32,32 @@ export default function History() {
 
     const fetchAnalyses = async () => {
         setLoading(true);
-        setTimeout(() => {
-            setAnalyses(dummyAnalysisData);
-            setTotalPages(1);
+        try {
+            const response = await api.get("/api/analyse/analyses");
+            if (response.data.success) {
+                setAnalyses(response.data.analyses);
+                setTotalPages(1); // Set to 1 as pagination is handled locally by processedData
+            }
+        } catch (error) {
+            console.error("Failed to fetch analysis history:", error);
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this analysis?")) return;
+        if (!confirm("Are you sure you want to delete this analysis?")) return;
         setDeleting(id);
-        setTimeout(() => {
+        try {
+            const response = await api.delete(`/api/analyse/analyses/${id}`);
+            if (response.data.success) {
+                setAnalyses((prev) => prev.filter((a) => a._id !== id));
+            }
+        } catch (error) {
+            console.error("Failed to delete analysis:", error);
+        } finally {
             setDeleting(null);
-        }, 1000);
+        }
     };
 
     const getScoreClass = (s: number) => {

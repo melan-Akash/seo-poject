@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import ScoreGauge from "../components/ScoreGauge";
 import IssueCard from "../components/IssueCard";
 import { ArrowLeft, Globe, Clock, FileText, Image, Link2, Heading, Tag, AlertCircle, ExternalLink, Type, Search } from "lucide-react";
-import { dummyWebsiteAnalysis } from "../assets/assets";
+import { useApp } from "../context/AppContext";
 
 interface AnalysisData {
     _id: string;
@@ -53,21 +54,57 @@ interface AnalysisData {
     };
     keywords: { word: string; count: number; density: number }[];
     issues: { severity: string; category: string; message: string; recommendation: string }[];
+    failReason?: string;
 }
 
 export default function Report() {
+    const { api } = useApp();
     const { id } = useParams();
     const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error] = useState("");
+    const [error, setError] = useState("");
     const [activeTab, setActiveTab] = useState("overview");
 
     const fetchAnalysis = async () => {
-        setTimeout(() => {
-            setAnalysis(dummyWebsiteAnalysis);
+        if (!id) return;
+        setLoading(true);
+        setError("");
+        try {
+            const response = await api.get(`/api/analyse/analyses/${id}`);
+            if (response.data.success) {
+                setAnalysis(response.data.analysis);
+            } else {
+                setError(response.data.message || "Failed to load report.");
+            }
+        } catch (err: any) {
+            console.error("Failed to fetch report:", err);
+            setError(err.response?.data?.message || "Failed to fetch report from server.");
+        } finally {
             setLoading(false);
-        }, 1500);
+        }
     };
+
+    useEffect(() => {
+        (async () => await fetchAnalysis())();
+    }, [id]);
+
+    // Poll if the analysis is still processing
+    useEffect(() => {
+        if (!analysis || analysis.status !== "processing") return;
+        const interval = setInterval(async () => {
+            try {
+                const response = await api.get(`/api/analyse/analyses/${id}`);
+                if (response.data.success) {
+                    const updated = response.data.analysis;
+                    setAnalysis(updated);
+                    if (updated.status !== "processing") clearInterval(interval);
+                }
+            } catch {
+                // keep polling silently
+            }
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [analysis?.status]);
 
     const getScoreClass = (s: number) => {
         if (s >= 80) return "score-good";
@@ -88,9 +125,6 @@ export default function Report() {
         { id: "issues", label: "Issues" },
     ];
 
-    useEffect(() => {
-        (async () => await fetchAnalysis())();
-    }, [id]);
 
     if (loading) {
         return (
@@ -121,10 +155,16 @@ export default function Report() {
     if (analysis.status === "failed") {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center bg-card border border-border rounded-2xl p-10">
+                <div className="text-center bg-card border border-border rounded-2xl p-10 max-w-lg">
                     <AlertCircle size={48} className="mx-auto text-danger mb-4" />
                     <h2 className="text-xl font-bold text-foreground mb-2">Analysis Failed</h2>
-                    <p className="text-muted-foreground text-sm mb-6">The AI model might be down. Please try again later.</p>
+                    <p className="text-muted-foreground text-sm mb-3">The analysis could not be completed.</p>
+                    {analysis.failReason && (
+                        <div className="mb-5 px-4 py-3 rounded-xl bg-danger/10 border border-danger/20 text-left">
+                            <p className="text-xs font-semibold text-danger mb-1">Error Details</p>
+                            <p className="text-xs text-muted-foreground break-all">{analysis.failReason}</p>
+                        </div>
+                    )}
                     <Link to="/analyze" className="bg-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-primary-foreground inline-block" style={{ color: "var(--background)" }}>
                         Try Again
                     </Link>
@@ -132,6 +172,19 @@ export default function Report() {
             </div>
         );
     }
+
+    if (analysis.status === "processing") {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center bg-card border border-border rounded-2xl p-10">
+                    <div className="size-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-foreground mb-2">Analysis In Progress</h2>
+                    <p className="text-muted-foreground text-sm">Your report is being generated. This page will update automatically.</p>
+                </div>
+            </div>
+        );
+    }
+
 
     const criticalCount = analysis.issues.filter((i) => i.severity === "critical").length;
     const warningCount = analysis.issues.filter((i) => i.severity === "warning").length;

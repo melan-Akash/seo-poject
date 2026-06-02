@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SearchIcon, GlobeIcon, FileSearchIcon, BrainIcon, CheckCircleIcon, AlertCircle, Loader2, ArrowRightIcon } from "lucide-react";
+import { useApp } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 const STEPS = [
     { icon: <GlobeIcon size={22} />, label: "Connecting to browser", desc: "Creating cloud browser session..." },
@@ -12,49 +14,134 @@ const STEPS = [
 ];
 
 export default function Analyze() {
+    const { api } = useApp();
     const [url, setUrl] = useState("");
     const [analyzing, setAnalyzing] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [error, setError] = useState("");
     const [searchParams] = useSearchParams();
     const pollRef = useRef<any>(null);
+    const stepTimersRef = useRef<any[]>([]);
 
     const navigate = useNavigate();
 
+    const clearAllTimers = () => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+        stepTimersRef.current.forEach(t => clearTimeout(t));
+        stepTimersRef.current = [];
+    };
+
     const handleAnalyze = async (submitUrl?: string) => {
         const targetUrl = submitUrl || url;
-        if (!targetUrl.trim()) return;
+        if (!targetUrl.trim()) {
+            toast.error("Please enter a URL");
+            return;
+        }
 
         setError("");
         setAnalyzing(true);
         setCurrentStep(0);
 
-        setTimeout(() => setCurrentStep(1), 1000);
-        setTimeout(() => setCurrentStep(2), 3000);
-        setTimeout(() => setCurrentStep(3), 6000);
-        setTimeout(() => {
+        // Animate steps visually while waiting
+        const t1 = setTimeout(() => setCurrentStep(1), 1500);
+        const t2 = setTimeout(() => setCurrentStep(2), 4000);
+        stepTimersRef.current = [t1, t2];
+
+        try {
+            // Step 1: Start analysis on backend
+            const startRes = await api.post("/api/analyse/analyze", {
+                url: targetUrl.trim(),
+            });
+
+            if (!startRes.data.success) {
+                throw new Error(startRes.data.message || "Failed to start analysis");
+            }
+
+            const analysisId = startRes.data.analysisId;
+
+            // Store analysisId in session to prevent duplicate polling
+            sessionStorage.setItem(`analysis_${analysisId}_polling`, "true");
+
+            // Step 2: Poll until complete or failed
+            let pollCount = 0;
+            const maxPolls = 60; // 60 * 3 seconds = 3 minutes max
+            pollRef.current = setInterval(async () => {
+                pollCount++;
+
+                // Stop polling after max attempts
+                if (pollCount >= maxPolls) {
+                    clearAllTimers();
+                    setAnalyzing(false);
+                    setError("Analysis timed out. The website may be taking too long to respond.");
+                    toast.error("Analysis timed out. Please try again.");
+                    sessionStorage.removeItem(`analysis_${analysisId}_polling`);
+                    return;
+                }
+
+                try {
+                    const pollRes = await api.get(`/api/analyse/analyses/${analysisId}`);
+
+                    if (!pollRes.data.success) return;
+
+                    const status = pollRes.data.analysis?.status;
+                    const failReason = pollRes.data.analysis?.failReason;
+
+                    if (status === "completed") {
+                        clearAllTimers();
+                        setCurrentStep(3);
+                        sessionStorage.removeItem(`analysis_${analysisId}_polling`);
+                        setTimeout(() => {
+                            setAnalyzing(false);
+                            navigate(`/report/${analysisId}`);
+                        }, 800);
+                    } else if (status === "failed") {
+                        clearAllTimers();
+                        setAnalyzing(false);
+                        sessionStorage.removeItem(`analysis_${analysisId}_polling`);
+                        const reason = failReason || "Analysis failed. Please try again.";
+                        setError(reason);
+                        toast.error(reason);
+                    }
+                } catch (pollErr: any) {
+                    console.warn("Poll error:", pollErr.message);
+                    // Don't stop polling on transient errors
+                }
+            }, 3000); // poll every 3 seconds
+
+        } catch (err: any) {
+            clearAllTimers();
             setAnalyzing(false);
-            navigate(`/report/id123`);
-        }, 8000);
+            const errorMsg = err.response?.data?.message || err.message || "Something went wrong. Please try again.";
+            setError(errorMsg);
+            toast.error(errorMsg);
+        }
     };
 
-    const handleSubmit = (e: React.SubmitEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         handleAnalyze();
     };
 
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            clearAllTimers();
+        };
+    }, []);
+
+    // Handle prefill URL from query params
     useEffect(() => {
         const prefillUrl = searchParams.get("url");
         if (prefillUrl) {
-            (() => setUrl(prefillUrl))();
+            setUrl(prefillUrl);
             // Auto-start if URL is provided
-            setTimeout(() => handleAnalyze(prefillUrl), 500);
+            const timer = setTimeout(() => handleAnalyze(prefillUrl), 500);
+            return () => clearTimeout(timer);
         }
-
-        return () => {
-            if (pollRef.current) clearInterval(pollRef.current);
-        };
-    }, []);
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen pt-16 md:pt-24 bg-background">
@@ -69,14 +156,14 @@ export default function Analyze() {
                         </div>
 
                         {error && (
-                            <div className="mb-6 px-4 py-3 rounded-xl severity-critical text-sm flex items-center gap-2 max-w-xl mx-auto">
-                                <AlertCircle size={18} className="shrink-0" />
-                                {error}
+                            <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm flex items-center gap-2 max-w-xl mx-auto">
+                                <AlertCircle size={18} className="shrink-0 text-red-500" />
+                                <span className="text-red-400">{error}</span>
                             </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="max-w-xl mx-auto">
-                            <div className="border border-primary/20 rounded-full p-1.5 px-2 flex items-center gap-2">
+                            <div className="border border-primary/20 rounded-full p-1.5 px-2 flex items-center gap-2 bg-muted/30">
                                 <div className="flex items-center gap-3 flex-1 px-3">
                                     <SearchIcon size={20} className="text-muted-foreground shrink-0" />
                                     <input
@@ -87,9 +174,16 @@ export default function Analyze() {
                                         className="w-full bg-transparent text-foreground placeholder-muted-foreground outline-none text-base py-3"
                                         id="analyze-url-input"
                                         autoFocus
+                                        disabled={analyzing}
                                     />
                                 </div>
-                                <button type="submit" className="bg-primary px-6 py-3 rounded-full flex items-center gap-2 text-primary-foreground text-sm hover:opacity-90 transition-opacity shrink-0" id="analyze-submit-btn" style={{ color: "var(--background)" }}>
+                                <button
+                                    type="submit"
+                                    disabled={analyzing || !url.trim()}
+                                    className="bg-primary px-6 py-3 rounded-full flex items-center gap-2 text-primary-foreground text-sm hover:opacity-90 transition-opacity shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    id="analyze-submit-btn"
+                                    style={{ color: "var(--background)" }}
+                                >
                                     Analyze <ArrowRightIcon className="text-background size-4 shrink-0" />
                                 </button>
                             </div>
@@ -102,8 +196,10 @@ export default function Analyze() {
                                     <button
                                         onClick={() => {
                                             setUrl(ex);
+                                            setError("");
                                         }}
                                         className="text-primary hover:underline"
+                                        disabled={analyzing}
                                     >
                                         {ex}
                                     </button>
@@ -119,7 +215,7 @@ export default function Analyze() {
                             <h2 className="text-2xl font-medium text-foreground">Analyzing Your Website</h2>
                             <div className="flex justify-center items-center gap-2 mt-2">
                                 <Loader2 size={16} className="text-primary/60 mt-0.5 animate-spin" />
-                                <p className="text-muted-foreground sm:text-lg">{url}</p>
+                                <p className="text-muted-foreground sm:text-lg truncate max-w-md">{url}</p>
                             </div>
                         </div>
 
@@ -131,24 +227,58 @@ export default function Analyze() {
                                 const isPending = i > currentStep;
 
                                 return (
-                                    <div key={step.label} className={`flex items-center gap-4 p-4 rounded-xl transition-all ${isCurrent ? "glass-strong border-primary/30" : isComplete ? "glass opacity-60" : "glass opacity-30"}`}>
+                                    <div
+                                        key={step.label}
+                                        className={`flex items-center gap-4 p-4 rounded-xl transition-all ${isCurrent
+                                                ? "glass-strong border border-primary/30"
+                                                : isComplete
+                                                    ? "bg-primary/5 border border-primary/10"
+                                                    : "bg-muted/30 border border-border"
+                                            }`}
+                                    >
                                         <div
-                                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isComplete ? "bg-success/15 text-success" : isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isComplete
+                                                    ? "bg-emerald-500/15 text-emerald-400"
+                                                    : isCurrent
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted text-muted-foreground"
+                                                }`}
                                             style={isCurrent ? { color: "var(--background)" } : {}}
                                         >
                                             {isComplete ? <CheckCircleIcon size={20} /> : step.icon}
                                         </div>
                                         <div className="flex-1">
-                                            <p className={`text-sm font-medium ${isPending ? "text-muted-foreground" : "text-foreground"}`}>{step.label}</p>
+                                            <p className={`text-sm font-medium ${isPending ? "text-muted-foreground" : "text-foreground"}`}>
+                                                {step.label}
+                                            </p>
                                             <p className="text-xs text-muted-foreground">{step.desc}</p>
                                         </div>
-                                        {isCurrent && <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />}
+                                        {isCurrent && (
+                                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                                        )}
                                     </div>
                                 );
                             })}
                         </div>
 
-                        <p className="text-center text-xs text-muted-foreground mt-8">This may take 15-30 seconds depending on the website.</p>
+                        <p className="text-center text-xs text-muted-foreground mt-8">
+                            This may take 15-30 seconds depending on the website.
+                        </p>
+
+                        {/* Cancel button during analysis */}
+                        <div className="text-center mt-6">
+                            <button
+                                onClick={() => {
+                                    clearAllTimers();
+                                    setAnalyzing(false);
+                                    setError("");
+                                    toast("Analysis cancelled", { icon: "🛑" });
+                                }}
+                                className="text-sm text-muted-foreground hover:text-danger transition-colors"
+                            >
+                                Cancel Analysis
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
