@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SearchIcon, GlobeIcon, FileSearchIcon, BrainIcon, CheckCircleIcon, AlertCircle, Loader2, ArrowRightIcon } from "lucide-react";
+import { SearchIcon, GlobeIcon, FileSearchIcon, BrainIcon, CheckCircleIcon, Loader2, ArrowRightIcon } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import toast from "react-hot-toast";
 
