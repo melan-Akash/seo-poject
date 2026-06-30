@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Clock, Trash2, ExternalLink, Search, AlertCircle, Loader2, Filter, ArrowUpDown } from "lucide-react";
 import ScoreGauge from "../components/ScoreGauge";
 import { useApp } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 interface AnalysisItem {
     _id: string;
@@ -40,6 +41,7 @@ export default function History() {
             }
         } catch (error) {
             console.error("Failed to fetch analysis history:", error);
+            toast.error("Failed to fetch analysis history");
         } finally {
             setLoading(false);
         }
@@ -52,9 +54,11 @@ export default function History() {
             const response = await api.delete(`/api/analyse/analyses/${id}`);
             if (response.data.success) {
                 setAnalyses((prev) => prev.filter((a) => a._id !== id));
+                toast.success("Analysis deleted successfully");
             }
         } catch (error) {
             console.error("Failed to delete analysis:", error);
+            toast.error("Failed to delete analysis");
         } finally {
             setDeleting(null);
         }

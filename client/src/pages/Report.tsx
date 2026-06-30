@@ -5,6 +5,7 @@ import ScoreGauge from "../components/ScoreGauge";
 import IssueCard from "../components/IssueCard";
 import { ArrowLeft, Globe, Clock, FileText, Image, Link2, Heading, Tag, AlertCircle, ExternalLink, Type, Search } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 interface AnalysisData {
     _id: string;
@@ -62,23 +63,21 @@ export default function Report() {
     const { id } = useParams();
     const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
     const [activeTab, setActiveTab] = useState("overview");
 
     const fetchAnalysis = async () => {
         if (!id) return;
         setLoading(true);
-        setError("");
         try {
             const response = await api.get(`/api/analyse/analyses/${id}`);
             if (response.data.success) {
                 setAnalysis(response.data.analysis);
             } else {
-                setError(response.data.message || "Failed to load report.");
+                toast.error(response.data.message || "Failed to load report.");
             }
         } catch (err: any) {
             console.error("Failed to fetch report:", err);
-            setError(err.response?.data?.message || "Failed to fetch report from server.");
+            toast.error(err.response?.data?.message || "Failed to fetch report from server.");
         } finally {
             setLoading(false);
         }
@@ -137,13 +136,13 @@ export default function Report() {
         );
     }
 
-    if (error || !analysis) {
+    if (!analysis) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center bg-card border border-border rounded-2xl p-10">
                     <AlertCircle size={48} className="mx-auto text-danger mb-4" />
                     <h2 className="text-xl font-bold text-foreground mb-2">Report Not Found</h2>
-                    <p className="text-muted-foreground text-sm mb-6">{error || "This analysis doesn't exist."}</p>
+                    <p className="text-muted-foreground text-sm mb-6">This analysis doesn't exist or could not be loaded.</p>
                     <Link to="/dashboard" className="bg-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-primary-foreground inline-block" style={{ color: "var(--background)" }}>
                         Back to Dashboard
                     </Link>
@@ -285,15 +284,15 @@ export default function Report() {
                                     Issues Summary
                                 </h3>
                                 <div className="grid grid-cols-3 gap-3">
-                                    <div className="severity-critical rounded-xl p-4 text-center">
+                                    <div className="severity-critical rounded-xl p-3 sm:p-4 text-center">
                                         <p className="text-2xl font-bold">{criticalCount}</p>
                                         <p className="text-xs mt-1">Critical</p>
                                     </div>
-                                    <div className="severity-warning rounded-xl p-4 text-center">
+                                    <div className="severity-warning rounded-xl p-3 sm:p-4 text-center">
                                         <p className="text-2xl font-bold">{warningCount}</p>
                                         <p className="text-xs mt-1">Warnings</p>
                                     </div>
-                                    <div className="severity-info rounded-xl p-4 text-center">
+                                    <div className="severity-info rounded-xl p-3 sm:p-4 text-center">
                                         <p className="text-2xl font-bold">{infoCount}</p>
                                         <p className="text-xs mt-1">Info</p>
                                     </div>
@@ -321,15 +320,15 @@ export default function Report() {
                                         Links Analysis
                                     </h3>
                                     <div className="grid grid-cols-3 gap-3">
-                                        <div className="glass rounded-xl p-4 text-center">
+                                        <div className="glass rounded-xl p-3 sm:p-4 text-center">
                                             <p className="text-2xl font-bold text-primary">{analysis.links.internal}</p>
                                             <p className="text-xs text-gray-500">Internal</p>
                                         </div>
-                                        <div className="glass rounded-xl p-4 text-center">
+                                        <div className="glass rounded-xl p-3 sm:p-4 text-center">
                                             <p className="text-2xl font-bold text-secondary">{analysis.links.external}</p>
                                             <p className="text-xs text-gray-500">External</p>
                                         </div>
-                                        <div className="glass rounded-xl p-4 text-center">
+                                        <div className="glass rounded-xl p-3 sm:p-4 text-center">
                                             <p className="text-2xl font-bold text-accent">{analysis.links.total}</p>
                                             <p className="text-xs text-gray-500">Total</p>
                                         </div>
@@ -342,15 +341,15 @@ export default function Report() {
                                         Images Audit
                                     </h3>
                                     <div className="grid grid-cols-3 gap-3">
-                                        <div className="glass rounded-xl p-4 text-center">
+                                        <div className="glass rounded-xl p-3 sm:p-4 text-center">
                                             <p className="text-2xl font-bold">{analysis.images.total}</p>
                                             <p className="text-xs text-gray-500">Total</p>
                                         </div>
-                                        <div className="glass rounded-xl p-4 text-center">
+                                        <div className="glass rounded-xl p-3 sm:p-4 text-center">
                                             <p className="text-2xl font-bold text-success">{analysis.images.withAlt}</p>
                                             <p className="text-xs text-gray-500">With Alt</p>
                                         </div>
-                                        <div className="glass rounded-xl p-4 text-center">
+                                        <div className="glass rounded-xl p-3 sm:p-4 text-center">
                                             <p className={`text-2xl font-bold ${analysis.images.missingAlt > 0 ? "text-danger" : "text-success"}`}>{analysis.images.missingAlt}</p>
                                             <p className="text-xs text-gray-500">Missing Alt</p>
                                         </div>

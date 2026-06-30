@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { sendWelcomeEmail } from "../services/emailService.js";
 
 // generate jwt token
 const generateToken = (id) => {
@@ -45,6 +46,11 @@ export const register = async (req, res) => {
     // generate token
     const token = generateToken(user._id);
 
+    // send welcome email
+    sendWelcomeEmail(user.email, user.name).catch((err) =>
+      console.error("Failed to send welcome email:", err.message)
+    );
+
     res.status(201).json({
       success: true,
       message: "User registered successfully",
@@ -54,6 +60,7 @@ export const register = async (req, res) => {
         name: user.name,
         email: user.email,
         plan: user.plan,
+        isOnboarded: user.isOnboarded,
       },
     });
   } catch (error) {
@@ -113,6 +120,40 @@ export const login = async (req, res) => {
         name: user.name,
         email: user.email,
         plan: user.plan,
+        isOnboarded: user.isOnboarded,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// complete onboarding
+export const completeOnboarding = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.isOnboarded = true;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Onboarding completed successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        isOnboarded: user.isOnboarded,
       },
     });
   } catch (error) {

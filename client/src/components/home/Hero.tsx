@@ -28,13 +28,13 @@ export default function Hero() {
 
             {/* URL Input Bar */}
             <form onSubmit={handleQuickAnalyze} className="max-w-2xl mx-auto relative">
-                <div className="bg-card border border-border rounded-full px-2 py-1.5 flex items-center gap-2 animate-pulse-glow">
-                    <div className="flex items-center gap-2 flex-1 px-3">
+                <div className="bg-card border border-border rounded-2xl sm:rounded-full p-1.5 px-2 flex flex-col sm:flex-row items-center gap-2 animate-pulse-glow">
+                    <div className="flex items-center gap-2 flex-1 w-full px-3">
                         <SearchIcon size={16} className="text-muted-foreground shrink-0" />
                         <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter website URL (e.g., example.com)" className="w-full bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm py-2" id="hero-url-input" />
                     </div>
 
-                    <button type="submit" className="bg-primary px-5 py-2.5 rounded-full text-primary-foreground text-sm hover:opacity-90 transition-opacity shrink-0 flex items-center gap-2" id="hero-analyze-btn" style={{ color: "var(--background)" }}>
+                    <button type="submit" className="w-full sm:w-auto bg-primary px-5 py-2.5 rounded-full text-primary-foreground text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2" id="hero-analyze-btn" style={{ color: "var(--background)" }}>
                         Analyze
                         <ArrowRightIcon size={14} />
                     </button>

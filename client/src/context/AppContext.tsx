@@ -8,6 +8,7 @@ interface User {
     email: string;
     plan: string;
     analysiscount?: number;
+    isOnboarded?: boolean;
 }
 
 interface AppContextType {
@@ -18,6 +19,7 @@ interface AppContextType {
     login: (email: string, password: string) => Promise<{ success: boolean, message?: string }>;
     register: (name: string, email: string, password: string) => Promise<{ success: boolean, message?: string }>;
     logout: () => void;
+    completeOnboarding: () => Promise<void>;
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -118,7 +120,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
     };
 
-    const value = { user, token, loading, api, login, register, logout };
+    const completeOnboarding = async (): Promise<void> => {
+        if (!user) return;
+        try {
+            const response = await api.post("/api/auth/complete-onboarding");
+            if (response.data.success) {
+                setUser(prev => prev ? { ...prev, isOnboarded: true } : null);
+            }
+        } catch (error) {
+            console.error("Failed to complete onboarding:", error);
+        }
+    };
+
+    const value = { user, token, loading, api, login, register, logout, completeOnboarding };
     
     return (
         <AppContext.Provider value={value}>

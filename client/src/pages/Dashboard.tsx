@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { SearchIcon, ArrowRightIcon, BarChart3Icon, GlobeIcon, TrendingUpIcon } from "lucide-react";
 import AnalysesCard from "../components/AnalysesCard";
 import { useApp } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 interface AnalysisSummary {
     _id: string;
@@ -35,6 +36,7 @@ export default function Dashboard() {
             }
         } catch (error) {
             console.error("Failed to fetch recent analyses:", error);
+            toast.error("Failed to fetch recent analyses");
         } finally {
             setLoading(false);
         }
@@ -73,13 +75,13 @@ export default function Dashboard() {
                 </div>
 
                 {/* Quick Analyze */}
-                <form onSubmit={handleAnalyze} className="mb-10" style={{ animationDelay: "100ms" }}>
-                    <div className="border border-primary/20 rounded-full p-2 flex items-center gap-2 max-w-2xl">
-                        <div className="flex items-center gap-3 flex-1 px-3">
+                <form onSubmit={handleAnalyze} className="mb-10 max-w-2xl" style={{ animationDelay: "100ms" }} id="dashboard-url-input-container">
+                    <div className="border border-primary/20 rounded-2xl sm:rounded-full p-1.5 px-2 flex flex-col sm:flex-row items-center gap-2 bg-card">
+                        <div className="flex items-center gap-3 flex-1 w-full px-3">
                             <SearchIcon size={20} className="text-muted-foreground shrink-0" />
                             <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter a URL to analyze..." className="w-full bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm py-3" id="dashboard-url-input" />
                         </div>
-                        <button type="submit" className="bg-primary px-5 py-3 rounded-full text-primary-foreground text-sm hover:opacity-90 transition-opacity shrink-0 flex items-center gap-2" style={{ color: "var(--background)" }} id="dashboard-analyze-btn">
+                        <button type="submit" className="w-full sm:w-auto bg-primary px-6 py-3 rounded-full text-primary-foreground text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2" style={{ color: "var(--background)" }} id="dashboard-analyze-btn">
                             Analyze
                             <ArrowRightIcon size={16} />
                         </button>
@@ -87,7 +89,7 @@ export default function Dashboard() {
                 </form>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10" id="dashboard-stats-container">
                     <div className="glass rounded-2xl p-5 flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                             <GlobeIcon size={22} />

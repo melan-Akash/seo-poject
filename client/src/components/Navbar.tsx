@@ -32,14 +32,14 @@ export default function Navbar() {
                     {/* Logo */}
                     <Link to="/" className="flex items-center gap-2 group">
                         <ChartNoAxesColumnIcon />
-                        <span className="text-xl tracking-tight text-foreground">Rank Pilot</span>
+                        <span className="text-xl font-bold tracking-tight text-foreground">SEO</span>
                     </Link>
 
                     {/* Desktop nav */}
                     {user && (
                         <div className="hidden md:flex items-center gap-1">
                             {navLinks.map((link) => (
-                                <Link key={link.path} to={link.path} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${isActive(link.path) ? "bg-accent/5 text-accent font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/80"}`}>
+                                <Link key={link.path} id={`nav-link-${link.path.replace("/", "")}`} to={link.path} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${isActive(link.path) ? "bg-accent/5 text-accent font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/80"}`}>
                                     {link.icon}
                                     {link.label}
                                 </Link>

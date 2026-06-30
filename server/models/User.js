@@ -29,6 +29,21 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    stripeCustomerId: {
+      type: String,
+      default: null,
+    },
+
+    stripeSubscriptionId: {
+      type: String,
+      default: null,
+    },
+
+    isOnboarded: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

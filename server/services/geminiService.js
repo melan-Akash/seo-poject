@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }); // Fixed: GIMINI_API_KEY → GEMINI_API_KEY
+let ai = null;
 
 // Response schema for structured SEO analysis
 const seoAnalysisSchema = {
@@ -50,6 +50,9 @@ const seoAnalysisSchema = {
 };
 
 export async function analysisSeoData(scrapedData) { // Fixed function name
+    if (!ai) {
+        ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    }
     try {
         const prompt = `You are an expert SEO analyst. Analyze the following website data and provide a comprehensive SEO audit.
 
@@ -110,7 +113,7 @@ export async function analysisSeoData(scrapedData) { // Fixed function name
     Extract top 10 keywords by frequency from the page content.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash', // Fixed model name (gemini-2.5-flash doesn't exist)
+            model: 'gemini-2.5-flash',
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             config: {
                 responseMimeType: "application/json",

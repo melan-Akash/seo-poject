@@ -11,9 +11,10 @@ import RankTracker from "./pages/RankTracker";
 import RankDetail from "./pages/RankDetail";
 import { Toaster } from "react-hot-toast";
 import { useApp } from "./context/AppContext";
+import OnboardingTour from "./components/OnboardingTour";
 
 export default function App() {
-    const {user, loading} = useApp();
+    const {user} = useApp();
     const location = useLocation();
 
     const hideNavbar = ["/login", "/register"].includes(location.pathname);
@@ -21,6 +22,7 @@ export default function App() {
     return (
         <>
             <Toaster />
+            <OnboardingTour />
             {!hideNavbar && <Navbar />}
             <Routes>
                 <Route path="/" element={<Home />} />

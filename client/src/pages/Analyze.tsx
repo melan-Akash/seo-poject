@@ -18,7 +18,6 @@ export default function Analyze() {
     const [url, setUrl] = useState("");
     const [analyzing, setAnalyzing] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
-    const [error, setError] = useState("");
     const [searchParams] = useSearchParams();
     const pollRef = useRef<any>(null);
     const stepTimersRef = useRef<any[]>([]);
@@ -41,7 +40,7 @@ export default function Analyze() {
             return;
         }
 
-        setError("");
+
         setAnalyzing(true);
         setCurrentStep(0);
 
@@ -75,7 +74,6 @@ export default function Analyze() {
                 if (pollCount >= maxPolls) {
                     clearAllTimers();
                     setAnalyzing(false);
-                    setError("Analysis timed out. The website may be taking too long to respond.");
                     toast.error("Analysis timed out. Please try again.");
                     sessionStorage.removeItem(`analysis_${analysisId}_polling`);
                     return;
@@ -102,7 +100,6 @@ export default function Analyze() {
                         setAnalyzing(false);
                         sessionStorage.removeItem(`analysis_${analysisId}_polling`);
                         const reason = failReason || "Analysis failed. Please try again.";
-                        setError(reason);
                         toast.error(reason);
                     }
                 } catch (pollErr: any) {
@@ -115,7 +112,6 @@ export default function Analyze() {
             clearAllTimers();
             setAnalyzing(false);
             const errorMsg = err.response?.data?.message || err.message || "Something went wrong. Please try again.";
-            setError(errorMsg);
             toast.error(errorMsg);
         }
     };
@@ -155,15 +151,10 @@ export default function Analyze() {
                             <p className="text-muted-foreground">Enter a URL to get a comprehensive AI-powered SEO audit report.</p>
                         </div>
 
-                        {error && (
-                            <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm flex items-center gap-2 max-w-xl mx-auto">
-                                <AlertCircle size={18} className="shrink-0 text-red-500" />
-                                <span className="text-red-400">{error}</span>
-                            </div>
-                        )}
 
-                        <form onSubmit={handleSubmit} className="max-w-xl mx-auto">
-                            <div className="border border-primary/20 rounded-full p-1.5 px-2 flex items-center gap-2 bg-muted/30">
+
+                        <form onSubmit={handleSubmit} className="max-w-xl mx-auto" id="analyze-card-container">
+                            <div className="border border-primary/20 rounded-2xl sm:rounded-full p-1.5 px-2 flex flex-col sm:flex-row items-center gap-2 bg-muted/30">
                                 <div className="flex items-center gap-3 flex-1 px-3">
                                     <SearchIcon size={20} className="text-muted-foreground shrink-0" />
                                     <input
@@ -180,7 +171,7 @@ export default function Analyze() {
                                 <button
                                     type="submit"
                                     disabled={analyzing || !url.trim()}
-                                    className="bg-primary px-6 py-3 rounded-full flex items-center gap-2 text-primary-foreground text-sm hover:opacity-90 transition-opacity shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full sm:w-auto bg-primary px-6 py-3 rounded-full flex items-center justify-center gap-2 text-primary-foreground text-sm hover:opacity-90 transition-opacity shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                                     id="analyze-submit-btn"
                                     style={{ color: "var(--background)" }}
                                 >
@@ -196,7 +187,6 @@ export default function Analyze() {
                                     <button
                                         onClick={() => {
                                             setUrl(ex);
-                                            setError("");
                                         }}
                                         className="text-primary hover:underline"
                                         disabled={analyzing}
@@ -271,7 +261,6 @@ export default function Analyze() {
                                 onClick={() => {
                                     clearAllTimers();
                                     setAnalyzing(false);
-                                    setError("");
                                     toast("Analysis cancelled", { icon: "🛑" });
                                 }}
                                 className="text-sm text-muted-foreground hover:text-danger transition-colors"
