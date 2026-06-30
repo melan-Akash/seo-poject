@@ -1,6 +1,6 @@
 import Analysis from "../models/Analysis.js";
 import { analysisSeoData } from "../services/geminiService.js"; // Fixed function name
-import { scrapeUrl } from "../services/scraperService.js"; // Fixed file name
+import { scrapeUrl } from "../services/scraperservice.js"; // Fixed file name
 
 // Analyze a URL
 export const analyzeUrl = async (req, res) => {

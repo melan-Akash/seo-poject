@@ -1,5 +1,5 @@
 import KeywordTracking from "../models/KeywordTracking.js";
-import { rankTracker, checkKeywordRanking } from "./rankTrackerService.js";
+import { rankTracker, checkKeywordRanking } from "./rankTrackerservice.js";
 
 // Update a single keyword's ranking
 export const updateKeywordRanking = async (keywordId) => {
