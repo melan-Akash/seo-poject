@@ -27,6 +27,16 @@ app.use("/api/rank", rankRoutes);
 app.use("/api/analyse", analyseRoutes); // Add analysis routes
 app.use("/api/stripe", stripeRoutes);
 
+// Root endpoint
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "SEO Analyzer API is running successfully!",
+        healthCheck: "/api/health",
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
     res.status(200).json({
